@@ -73,7 +73,8 @@ public class StaffService {
         user.setRole(Role.valueOf(request.getRole().toUpperCase()));
         userRepository.save(user);
 
-        staff.setBranches(branches);
+        staff.getBranches().clear();
+        staff.getBranches().addAll(branches);
         if (request.getCanMarkAttendance() != null) {
             staff.setCanMarkAttendance(request.getCanMarkAttendance());
         }
