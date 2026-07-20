@@ -11,6 +11,7 @@ import com.beeline.sms.repository.BranchRepository;
 import com.beeline.sms.repository.StaffRepository;
 import com.beeline.sms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,6 +24,7 @@ public class StaffService {
     private final StaffRepository staffRepository;
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public List<StaffResponse> getAllStaff() {
         return staffRepository.findAll().stream()
@@ -40,7 +42,7 @@ public class StaffService {
         User user = User.builder()
                 .fullName(request.getFullName())
                 .username(request.getUsername())
-                .password(request.getPassword())
+                .password(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail())
                 .role(Role.valueOf(request.getRole().toUpperCase()))
                 .status(UserStatus.ACTIVE)

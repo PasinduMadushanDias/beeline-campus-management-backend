@@ -10,6 +10,7 @@ import com.beeline.sms.repository.StaffRepository;
 import com.beeline.sms.repository.StudentRepository;
 import com.beeline.sms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -22,12 +23,13 @@ public class AuthService {
     private final UserRepository userRepository;
     private final StudentRepository studentRepository;
     private final StaffRepository staffRepository;
+    private final PasswordEncoder passwordEncoder;
 
     public AuthResponse authenticate(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
                 .orElseThrow(() -> new RuntimeException("Invalid username or password"));
 
-        if (!user.getPassword().equals(request.getPassword())) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new RuntimeException("Invalid username or password");
         }
 

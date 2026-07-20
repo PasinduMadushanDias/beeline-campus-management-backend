@@ -13,6 +13,7 @@ import com.beeline.sms.repository.BranchRepository;
 import com.beeline.sms.repository.StudentRepository;
 import com.beeline.sms.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +29,7 @@ public class StudentService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
+    private final PasswordEncoder passwordEncoder;
 
     /** Matches generated IDs like A01, B99, AA01 — used to locate "the last ID" during generation. */
     private static final Pattern STUDENT_ID_PATTERN = Pattern.compile("^([A-Z]+)(\\d{2})$");
@@ -60,7 +62,7 @@ public class StudentService {
         User user = User.builder()
                 .fullName(request.getFullName())
                 .username(request.getUsername())
-                .password(request.getPassword())
+                .password(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail())
                 .role(Role.STUDENT)
                 .status(UserStatus.ACTIVE)
@@ -239,7 +241,7 @@ public class StudentService {
         }
 
         User user = student.getUser();
-        user.setPassword(newPassword);
+        user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
     }
 
@@ -250,7 +252,7 @@ public class StudentService {
 
         User user = student.getUser();
 
-        if (!user.getPassword().equals(request.getCurrentPassword())) {
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             throw new RuntimeException("Current password is incorrect");
         }
 
@@ -258,11 +260,11 @@ public class StudentService {
             throw new RuntimeException("New password must be at least 4 characters long");
         }
 
-        if (request.getNewPassword().equals(request.getCurrentPassword())) {
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
             throw new RuntimeException("New password must be different from current password");
         }
 
-        user.setPassword(request.getNewPassword());
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
     }
 

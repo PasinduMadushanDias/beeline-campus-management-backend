@@ -15,14 +15,15 @@ VALUES
 SELECT setval('branches_id_seq', (SELECT COALESCE(MAX(id), 0) FROM branches));
 
 -- ── Users (auth-only: no branch_id) ──
+-- Password column stores BCrypt hashes; the hash below is 'BCrypt("123")', kept only for local/dev seeding.
 INSERT INTO users (id, full_name, username, password, email, role, status)
 VALUES
-    (1, 'Admin User', 'admin', '123', 'admin@beeline.lk', 'ADMIN', 'ACTIVE'),
-    (2, 'Mr. Kamal Perera', 'teacher', '123', 'kamal@beeline.lk', 'TEACHER', 'ACTIVE'),
-    (3, 'Ms. Nisha Fernando', 'nisha.fernando', '123', 'nisha@beeline.lk', 'TEACHER', 'ACTIVE'),
-    (4, 'Mr. Ruwan Silva', 'staff', '123', 'ruwan@beeline.lk', 'STAFF', 'ACTIVE'),
-    (5, 'Ms. Amaya Dias', 'amaya.dias', '123', 'amaya@beeline.lk', 'STAFF', 'ACTIVE'),
-    (6, 'Mr. Dinesh Rajapaksha', 'dinesh.r', '123', 'dinesh@beeline.lk', 'STAFF', 'ON_LEAVE')
+    (1, 'Admin User', 'admin', '$2y$10$qZdO1M.OOf3ZzwUBhSx2wujgao4ANmLfq7uqusywuOgjwqQR9cDV2', 'admin@beeline.lk', 'ADMIN', 'ACTIVE'),
+    (2, 'Mr. Kamal Perera', 'teacher', '$2y$10$qZdO1M.OOf3ZzwUBhSx2wujgao4ANmLfq7uqusywuOgjwqQR9cDV2', 'kamal@beeline.lk', 'TEACHER', 'ACTIVE'),
+    (3, 'Ms. Nisha Fernando', 'nisha.fernando', '$2y$10$qZdO1M.OOf3ZzwUBhSx2wujgao4ANmLfq7uqusywuOgjwqQR9cDV2', 'nisha@beeline.lk', 'TEACHER', 'ACTIVE'),
+    (4, 'Mr. Ruwan Silva', 'staff', '$2y$10$qZdO1M.OOf3ZzwUBhSx2wujgao4ANmLfq7uqusywuOgjwqQR9cDV2', 'ruwan@beeline.lk', 'STAFF', 'ACTIVE'),
+    (5, 'Ms. Amaya Dias', 'amaya.dias', '$2y$10$qZdO1M.OOf3ZzwUBhSx2wujgao4ANmLfq7uqusywuOgjwqQR9cDV2', 'amaya@beeline.lk', 'STAFF', 'ACTIVE'),
+    (6, 'Mr. Dinesh Rajapaksha', 'dinesh.r', '$2y$10$qZdO1M.OOf3ZzwUBhSx2wujgao4ANmLfq7uqusywuOgjwqQR9cDV2', 'dinesh@beeline.lk', 'STAFF', 'ON_LEAVE')
     ON CONFLICT (id) DO NOTHING;
 
 SELECT setval('users_id_seq', (SELECT COALESCE(MAX(id), 0) FROM users));
