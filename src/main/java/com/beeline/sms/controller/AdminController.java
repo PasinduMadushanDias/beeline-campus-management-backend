@@ -147,6 +147,17 @@ public class AdminController {
         }
     }
 
+    @PatchMapping("/students/{id}/reset-password")
+    public ResponseEntity<?> resetStudentPassword(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        try {
+            String newPassword = body.get("newPassword");
+            studentService.resetPassword(id, newPassword);
+            return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @GetMapping("/students/next-id")
     public ResponseEntity<?> previewNextStudentId(@RequestParam Long branchId) {
         try {

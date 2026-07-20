@@ -1,5 +1,6 @@
 package com.beeline.sms.service;
 
+import com.beeline.sms.dto.ChangePasswordRequest;
 import com.beeline.sms.dto.StudentRegistrationRequest;
 import com.beeline.sms.dto.StudentResponse;
 import com.beeline.sms.entity.Branch;
@@ -224,5 +225,45 @@ public class StudentService {
         return toResponse(student);
     }
 
+    /**
+     * Admin-driven reset: no current-password check, since the Admin isn't the account
+     * owner. Same minimum-length rule as the student self-service change, for consistency.
+     */
+    @Transactional
+    public void resetPassword(Long studentId, String newPassword) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new RuntimeException("Student not found with id: " + studentId));
+
+        if (newPassword == null || newPassword.length() < 4) {
+            throw new RuntimeException("New password must be at least 4 characters long");
+        }
+
+        User user = student.getUser();
+        user.setPassword(newPassword);
+        userRepository.save(user);
+    }
+
+    @Transactional
+    public void changePassword(ChangePasswordRequest request) {
+        Student student = studentRepository.findByUserId(request.getUserId())
+                .orElseThrow(() -> new RuntimeException("Student profile not found for user id: " + request.getUserId()));
+
+        User user = student.getUser();
+
+        if (!user.getPassword().equals(request.getCurrentPassword())) {
+            throw new RuntimeException("Current password is incorrect");
+        }
+
+        if (request.getNewPassword().length() < 4) {
+            throw new RuntimeException("New password must be at least 4 characters long");
+        }
+
+        if (request.getNewPassword().equals(request.getCurrentPassword())) {
+            throw new RuntimeException("New password must be different from current password");
+        }
+
+        user.setPassword(request.getNewPassword());
+        userRepository.save(user);
+    }
 
 }
