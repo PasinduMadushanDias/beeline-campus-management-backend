@@ -1,5 +1,6 @@
 package com.beeline.sms.service;
 
+import com.beeline.sms.dto.AttendanceBatchMarkRequest;
 import com.beeline.sms.dto.AttendanceMarkRequest;
 import com.beeline.sms.dto.AttendanceResponse;
 import com.beeline.sms.dto.FingerprintAttendanceMarkRequest;
@@ -15,11 +16,14 @@ import com.beeline.sms.repository.StudentRepository;
 import com.beeline.sms.repository.UserRepository;
 import com.machinezoo.sourceafis.FingerprintTemplate;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -139,6 +143,39 @@ public class AttendanceService {
     }
 
     /**
+     * Marks attendance for a whole class/branch in one transaction instead of one
+     * HTTP round-trip per student. Upserts per entry (same semantics as QR/fingerprint
+     * marking) so re-submitting the same day just reconfirms rather than erroring.
+     */
+    @Transactional
+    public List<AttendanceResponse> markAttendanceBatch(AttendanceBatchMarkRequest request, Long markedByUserId) {
+        User markedBy = validateMarkerPermission(markedByUserId);
+
+        List<Attendance> toSave = new ArrayList<>();
+        for (AttendanceBatchMarkRequest.Entry entry : request.getEntries()) {
+            Student student = studentRepository.findById(entry.getStudentId())
+                    .orElseThrow(() -> new RuntimeException("Student not found with ID: " + entry.getStudentId()));
+            if (!student.getBranch().getId().equals(request.getBranchId())) {
+                throw new RuntimeException("Student " + entry.getStudentId() + " does not belong to the selected branch");
+            }
+
+            Attendance attendance = attendanceRepository.findByStudentIdAndDate(student.getId(), request.getDate())
+                    .orElseGet(() -> Attendance.builder()
+                            .student(student)
+                            .date(request.getDate())
+                            .build());
+            attendance.setPresent(entry.getPresent() != null ? entry.getPresent() : true);
+            attendance.setMarkedBy(markedBy);
+            attendance.setMarkedAt(LocalDateTime.now());
+            toSave.add(attendance);
+        }
+
+        return attendanceRepository.saveAll(toSave).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
      * Shared permission check for both manual and QR marking: Admin is always
      * allowed; Staff/Teacher must have canMarkAttendance = true; anyone else rejected.
      */
@@ -159,16 +196,12 @@ public class AttendanceService {
         return markedBy;
     }
 
-    public List<AttendanceResponse> getAllAttendance() {
-        return attendanceRepository.findAllByOrderByDateDesc().stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<AttendanceResponse> getAllAttendance(Pageable pageable) {
+        return attendanceRepository.findAllByOrderByDateDesc(pageable).map(this::toResponse);
     }
 
-    public List<AttendanceResponse> getAttendanceByBranch(Long branchId) {
-        return attendanceRepository.findByStudentBranchIdOrderByDateDesc(branchId).stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<AttendanceResponse> getAttendanceByBranch(Long branchId, Pageable pageable) {
+        return attendanceRepository.findByStudentBranchIdOrderByDateDesc(branchId, pageable).map(this::toResponse);
     }
 
     public List<AttendanceResponse> getAttendanceByStudent(Long studentId) {
@@ -177,16 +210,13 @@ public class AttendanceService {
                 .toList();
     }
 
-    public List<AttendanceResponse> getAttendanceByDate(LocalDate date) {
-        return attendanceRepository.findByDateOrderByStudentUserFullNameAsc(date).stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<AttendanceResponse> getAttendanceByDate(LocalDate date, Pageable pageable) {
+        return attendanceRepository.findByDateOrderByStudentUserFullNameAsc(date, pageable).map(this::toResponse);
     }
 
-    public List<AttendanceResponse> getAttendanceByBranchAndDate(Long branchId, LocalDate date) {
-        return attendanceRepository.findByStudentBranchIdAndDateOrderByStudentUserFullNameAsc(branchId, date).stream()
-                .map(this::toResponse)
-                .toList();
+    public Page<AttendanceResponse> getAttendanceByBranchAndDate(Long branchId, LocalDate date, Pageable pageable) {
+        return attendanceRepository.findByStudentBranchIdAndDateOrderByStudentUserFullNameAsc(branchId, date, pageable)
+                .map(this::toResponse);
     }
 
     public List<AttendanceResponse> getMyAttendance(Long userId) {
