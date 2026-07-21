@@ -36,4 +36,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
             "(:query IS NULL OR LOWER(s.user.fullName) LIKE CONCAT('%', :query, '%') " +
             "OR LOWER(s.studentIdNo) LIKE CONCAT('%', :query, '%'))")
     List<Student> search(@Param("branchId") Long branchId, @Param("query") String query);
+
+    @Query("SELECT s FROM Student s WHERE s.branch.id = :branchId AND s.fingerprintTemplate IS NOT NULL")
+    List<Student> findEnrolledFingerprintsByBranchId(@Param("branchId") Long branchId);
 }

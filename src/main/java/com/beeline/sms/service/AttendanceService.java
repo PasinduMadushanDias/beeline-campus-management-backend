@@ -2,6 +2,7 @@ package com.beeline.sms.service;
 
 import com.beeline.sms.dto.AttendanceMarkRequest;
 import com.beeline.sms.dto.AttendanceResponse;
+import com.beeline.sms.dto.FingerprintAttendanceMarkRequest;
 import com.beeline.sms.dto.QrAttendanceMarkRequest;
 import com.beeline.sms.entity.Attendance;
 import com.beeline.sms.entity.Staff;
@@ -12,6 +13,7 @@ import com.beeline.sms.repository.AttendanceRepository;
 import com.beeline.sms.repository.StaffRepository;
 import com.beeline.sms.repository.StudentRepository;
 import com.beeline.sms.repository.UserRepository;
+import com.machinezoo.sourceafis.FingerprintTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +30,7 @@ public class AttendanceService {
     private final StudentRepository studentRepository;
     private final UserRepository userRepository;
     private final StaffRepository staffRepository;
+    private final FingerprintService fingerprintService;
 
     @Transactional
     public AttendanceResponse markAttendanceByStudentId(AttendanceMarkRequest request, Long markedByUserId) {
@@ -72,6 +75,58 @@ public class AttendanceService {
         Attendance attendance = attendanceRepository.findByStudentIdAndDate(student.getId(), request.getDate())
                 .orElseGet(() -> Attendance.builder()
                         .student(student)
+                        .date(request.getDate())
+                        .build());
+
+        attendance.setPresent(request.getPresent() != null ? request.getPresent() : true);
+        attendance.setMarkedBy(markedBy);
+        attendance.setMarkedAt(LocalDateTime.now());
+        attendance = attendanceRepository.save(attendance);
+
+        return toResponse(attendance);
+    }
+
+    /**
+     * Fingerprint-based attendance marking. Runs 1:N matching against every enrolled
+     * template in the given branch (mirrors the QR flow's branch scoping) and upserts
+     * like markAttendanceByQr — a student scanning twice in one day should reconfirm,
+     * not error. Rejects if no enrolled template scores above FingerprintService.MATCH_THRESHOLD,
+     * or if the top two candidates are too close to call (ambiguous match).
+     */
+    @Transactional
+    public AttendanceResponse markAttendanceByFingerprint(FingerprintAttendanceMarkRequest request, Long markedByUserId) {
+        User markedBy = validateMarkerPermission(markedByUserId);
+
+        FingerprintTemplate probe = fingerprintService.buildTemplate(request.getImageBase64(), request.getDpi());
+
+        List<Student> candidates = studentRepository.findEnrolledFingerprintsByBranchId(request.getBranchId());
+
+        Student bestMatch = null;
+        double bestScore = -1;
+        double secondBestScore = -1;
+        for (Student candidate : candidates) {
+            FingerprintTemplate candidateTemplate = fingerprintService.deserialize(candidate.getFingerprintTemplate());
+            double score = fingerprintService.match(probe, candidateTemplate);
+            if (score > bestScore) {
+                secondBestScore = bestScore;
+                bestScore = score;
+                bestMatch = candidate;
+            } else if (score > secondBestScore) {
+                secondBestScore = score;
+            }
+        }
+
+        if (bestMatch == null || bestScore < FingerprintService.MATCH_THRESHOLD) {
+            throw new RuntimeException("Fingerprint not recognized. Please try again or contact the office.");
+        }
+        if (secondBestScore >= FingerprintService.MATCH_THRESHOLD && (bestScore - secondBestScore) < 5) {
+            throw new RuntimeException("Fingerprint match was ambiguous. Please scan again.");
+        }
+
+        Student matchedStudent = bestMatch;
+        Attendance attendance = attendanceRepository.findByStudentIdAndDate(matchedStudent.getId(), request.getDate())
+                .orElseGet(() -> Attendance.builder()
+                        .student(matchedStudent)
                         .date(request.getDate())
                         .build());
 

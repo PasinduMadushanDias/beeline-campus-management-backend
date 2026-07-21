@@ -2,6 +2,7 @@ package com.beeline.sms.controller;
 
 import com.beeline.sms.dto.AttendanceMarkRequest;
 import com.beeline.sms.dto.AttendanceResponse;
+import com.beeline.sms.dto.FingerprintAttendanceMarkRequest;
 import com.beeline.sms.dto.QrAttendanceMarkRequest;
 import com.beeline.sms.service.AttendanceService;
 import jakarta.validation.Valid;
@@ -38,6 +39,18 @@ public class AttendanceController {
             @RequestParam Long markedByUserId) {
         try {
             AttendanceResponse response = attendanceService.markAttendanceByQr(request, markedByUserId);
+            return ResponseEntity.ok(response);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping("/mark-by-fingerprint")
+    public ResponseEntity<?> markAttendanceByFingerprint(
+            @Valid @RequestBody FingerprintAttendanceMarkRequest request,
+            @RequestParam Long markedByUserId) {
+        try {
+            AttendanceResponse response = attendanceService.markAttendanceByFingerprint(request, markedByUserId);
             return ResponseEntity.ok(response);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));

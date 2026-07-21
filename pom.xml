@@ -53,6 +53,13 @@
             <artifactId>spring-security-crypto</artifactId>
         </dependency>
 
+        <!-- SourceAFIS: fingerprint template matching (server-side 1:N verification) -->
+        <dependency>
+            <groupId>com.machinezoo.sourceafis</groupId>
+            <artifactId>sourceafis</artifactId>
+            <version>3.18.1</version>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>

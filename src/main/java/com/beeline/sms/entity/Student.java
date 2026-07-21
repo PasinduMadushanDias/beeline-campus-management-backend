@@ -57,4 +57,9 @@ public class Student {
 
     @Column(name = "nic", length = 20, unique = true)
     private String nic;
+
+    // Serialized SourceAFIS FingerprintTemplate (JSON), base64-free — stored as text.
+    // Never store raw fingerprint images, only the extracted minutiae template.
+    @Column(name = "fingerprint_template", columnDefinition = "TEXT")
+    private String fingerprintTemplate;
 }

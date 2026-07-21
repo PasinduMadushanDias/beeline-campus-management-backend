@@ -27,4 +27,5 @@ public class StudentResponse {
     private String birthday;
     private String gender;
     private String nic;
+    private Boolean fingerprintEnrolled;
 }

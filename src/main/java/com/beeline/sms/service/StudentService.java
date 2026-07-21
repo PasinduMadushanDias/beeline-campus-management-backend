@@ -1,6 +1,7 @@
 package com.beeline.sms.service;
 
 import com.beeline.sms.dto.ChangePasswordRequest;
+import com.beeline.sms.dto.FingerprintEnrollRequest;
 import com.beeline.sms.dto.StudentRegistrationRequest;
 import com.beeline.sms.dto.StudentResponse;
 import com.beeline.sms.entity.Branch;
@@ -12,6 +13,7 @@ import com.beeline.sms.enums.UserStatus;
 import com.beeline.sms.repository.BranchRepository;
 import com.beeline.sms.repository.StudentRepository;
 import com.beeline.sms.repository.UserRepository;
+import com.machinezoo.sourceafis.FingerprintTemplate;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -30,6 +32,7 @@ public class StudentService {
     private final UserRepository userRepository;
     private final BranchRepository branchRepository;
     private final PasswordEncoder passwordEncoder;
+    private final FingerprintService fingerprintService;
 
     /** Matches generated IDs like A01, B99, AA01 — used to locate "the last ID" during generation. */
     private static final Pattern STUDENT_ID_PATTERN = Pattern.compile("^([A-Z]+)(\\d{2})$");
@@ -210,6 +213,7 @@ public class StudentService {
                 .birthday(student.getBirthday() != null ? student.getBirthday().toString() : null)
                 .gender(student.getGender() != null ? student.getGender().name() : null)
                 .nic(student.getNic())
+                .fingerprintEnrolled(student.getFingerprintTemplate() != null)
                 .build();
     }
 
@@ -266,6 +270,29 @@ public class StudentService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    /**
+     * Enrolls (or re-enrolls) a student's fingerprint. Re-enrollment simply overwrites
+     * the stored template — there's no history/versioning need for a school attendance
+     * use case, and keeping the old template around would only risk stale matches.
+     */
+    @Transactional
+    public void enrollFingerprint(Long studentId, FingerprintEnrollRequest request) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new RuntimeException("Student not found with id: " + studentId));
+
+        FingerprintTemplate template = fingerprintService.buildTemplate(request.getImageBase64(), request.getDpi());
+        student.setFingerprintTemplate(fingerprintService.serialize(template));
+        studentRepository.save(student);
+    }
+
+    @Transactional
+    public void removeFingerprint(Long studentId) {
+        Student student = studentRepository.findById(studentId)
+                .orElseThrow(() -> new RuntimeException("Student not found with id: " + studentId));
+        student.setFingerprintTemplate(null);
+        studentRepository.save(student);
     }
 
 }
